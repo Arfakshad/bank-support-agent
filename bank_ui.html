@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bank Support Agent</title>
+<style>
+  :root {
+    --ink:#0f1b3d; --muted:#64708f; --glass:rgba(255,255,255,.82); --glass-line:rgba(255,255,255,.65);
+    --bot:#ffffff; --bot-line:#e6ebf7; --input:#f3f6fd; --accent:#4f46e5; --accent2:#06b6d4;
+    --user1:#4f46e5; --user2:#7c3aed; --shadow:0 30px 80px rgba(20,30,90,.35);
+    --bg:#0b1230;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e9edfb; --muted:#93a0c4; --glass:rgba(18,25,52,.82); --glass-line:rgba(255,255,255,.08);
+            --bot:#1b2447; --bot-line:#2a3566; --input:#161e3f; --accent:#818cf8; }
+  }
+  * { box-sizing:border-box; margin:0; }
+  html, body { height:100%; }
+  body {
+    font:16px/1.55 "Segoe UI Variable","Segoe UI",system-ui,sans-serif; color:var(--ink);
+    background:var(--bg); display:flex; justify-content:center; align-items:center; padding:20px; overflow:hidden;
+  }
+  /* animated background */
+  .blob { position:fixed; border-radius:50%; filter:blur(80px); opacity:.65; z-index:0; animation:float 14s ease-in-out infinite; }
+  .b1 { width:480px; height:480px; background:#4f46e5; top:-120px; left:-100px; }
+  .b2 { width:420px; height:420px; background:#06b6d4; bottom:-140px; right:-80px; animation-delay:-5s; }
+  .b3 { width:340px; height:340px; background:#ec4899; top:40%; left:55%; opacity:.4; animation-delay:-9s; }
+  @keyframes float { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(40px,-30px) scale(1.12); } }
+
+  .app {
+    position:relative; z-index:1; width:100%; max-width:820px; height:min(94dvh,860px);
+    background:var(--glass); backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+    border:1px solid var(--glass-line); border-radius:28px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header { display:flex; align-items:center; gap:14px; padding:18px 22px; border-bottom:1px solid var(--bot-line); }
+  .logo {
+    width:50px; height:50px; border-radius:16px; display:grid; place-items:center; font-size:26px; color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 8px 22px rgba(79,70,229,.45);
+  }
+  .title { flex:1; min-width:0; }
+  .title h1 { font-size:19px; font-weight:700; letter-spacing:.2px; }
+  .title small { color:var(--muted); font-size:13px; display:flex; align-items:center; gap:7px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 2s infinite; }
+  @keyframes pulse { 70% { box-shadow:0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow:0 0 0 0 rgba(34,197,94,0); } }
+  .newchat {
+    border:1px solid var(--bot-line); background:var(--bot); color:var(--ink); padding:8px 14px; border-radius:999px;
+    font:inherit; font-size:13px; cursor:pointer; transition:.2s;
+  }
+  .newchat:hover { border-color:var(--accent); color:var(--accent); }
+
+  .secure {
+    display:flex; align-items:center; gap:8px; padding:9px 22px; font-size:12.5px; font-weight:500;
+    color:#065f46; background:linear-gradient(90deg,#d1fae5,#ecfeff);
+  }
+  @media (prefers-color-scheme: dark) { .secure { color:#6ee7b7; background:linear-gradient(90deg,#0b2a22,#0b2530); } }
+
+  #log { flex:1; overflow-y:auto; padding:22px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; }
+  #log::-webkit-scrollbar { width:8px; } #log::-webkit-scrollbar-thumb { background:var(--bot-line); border-radius:8px; }
+
+  .hero { text-align:center; padding:8px 0 4px; animation:rise .5s ease; }
+  .hero .wave { font-size:44px; }
+  .hero h2 { font-size:26px; margin:6px 0 4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero p { color:var(--muted); font-size:14.5px; }
+  .cards { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:20px; }
+  .card {
+    text-align:left; padding:14px 16px; border-radius:18px; border:1px solid var(--bot-line); background:var(--bot);
+    color:var(--ink); font:inherit; cursor:pointer; display:flex; gap:12px; align-items:center; transition:.2s;
+  }
+  .card:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:0 12px 28px rgba(79,70,229,.2); }
+  .card .ic { font-size:24px; width:44px; height:44px; border-radius:14px; display:grid; place-items:center; background:var(--input); flex:none; }
+  .card b { display:block; font-size:14.5px; } .card span { font-size:12.5px; color:var(--muted); }
+
+  .row { display:flex; gap:10px; align-items:flex-end; animation:rise .3s ease; }
+  .row.user { flex-direction:row-reverse; }
+  @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .avatar { width:34px; height:34px; border-radius:12px; display:grid; place-items:center; font-size:17px; flex:none; color:#fff;
+            background:linear-gradient(135deg,var(--accent),var(--accent2)); }
+  .row.user .avatar { display:none; }
+  .col { max-width:80%; display:flex; flex-direction:column; gap:4px; }
+  .row.user .col { align-items:flex-end; }
+  .msg { padding:12px 16px; border-radius:20px; font-size:15px; overflow-wrap:anywhere; }
+  .bot .msg { background:var(--bot); border:1px solid var(--bot-line); border-bottom-left-radius:6px; box-shadow:0 4px 14px rgba(20,30,90,.06); }
+  .user .msg { color:#fff; background:linear-gradient(135deg,var(--user1),var(--user2)); border-bottom-right-radius:6px; box-shadow:0 8px 20px rgba(79,70,229,.35); white-space:pre-wrap; }
+  .err .msg { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+  @media (prefers-color-scheme: dark) { .err .msg { background:#3a1519; border-color:#6b1f27; color:#fca5a5; } }
+  .newchat.auth.on { border-color:#22c55e; color:#16a34a; }
+  .modal { position:absolute; inset:0; z-index:10; display:grid; place-items:center; background:rgba(8,14,40,.55); backdrop-filter:blur(4px); }
+  .modal[hidden] { display:none; }
+  .box { width:min(360px,90%); background:var(--bot); border:1px solid var(--bot-line); border-radius:22px; padding:22px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow); }
+  .box h3 { font-size:18px; } .hint { font-size:12.5px; color:var(--muted); }
+  .box input { width:100%; }
+  .err-line { color:#dc2626; font-size:13px; min-height:18px; }
+  .btns { display:flex; gap:10px; justify-content:flex-end; }
+  .btns button { border:0; padding:10px 18px; border-radius:999px; font:inherit; font-size:14px; cursor:pointer; }
+  .btns .ghost { background:var(--input); color:var(--ink); }
+  .btns .go { color:#fff; background:linear-gradient(135deg,var(--user1),var(--user2)); }
+  .langpick { display:flex; gap:8px; margin-top:10px; }
+  .langpick button { border:1px solid var(--accent); background:transparent; color:var(--accent); padding:7px 18px; border-radius:999px; font:inherit; font-size:14px; cursor:pointer; transition:.2s; }
+  .langpick button:hover { background:var(--accent); color:#fff; }
+  .chosen { color:var(--accent); font-weight:600; }
+  .time { font-size:11px; color:var(--muted); padding:0 6px; }
+  .msg p { margin:0 0 8px; } .msg p:last-child, .msg ul:last-child, .msg ol:last-child { margin-bottom:0; }
+  .msg ul, .msg ol { margin:4px 0 8px; margin-inline-start:22px; padding:0; }
+  .ar { font-family:"Segoe UI","Tahoma","Noto Sans Arabic",sans-serif; }
+  .sub { display:block; opacity:.8; font-size:.86em; font-weight:500; } .msg li { margin:3px 0; }
+  .msg code { background:var(--input); padding:1px 6px; border-radius:6px; font-size:13.5px; }
+  .typing span { display:inline-block; width:8px; height:8px; margin:3px 2px; border-radius:50%; background:var(--accent); animation:bounce 1s infinite; }
+  .typing span:nth-child(2) { animation-delay:.15s; } .typing span:nth-child(3) { animation-delay:.3s; }
+  @keyframes bounce { 0%,60%,100% { transform:none; opacity:.4; } 30% { transform:translateY(-6px); opacity:1; } }
+
+  form { display:flex; gap:10px; padding:14px 22px 18px; border-top:1px solid var(--bot-line); align-items:center; }
+  input {
+    flex:1; padding:14px 20px; border-radius:999px; border:1.5px solid transparent; background:var(--input);
+    color:var(--ink); font:inherit; outline:none; transition:.2s;
+  }
+  input::placeholder { color:var(--muted); }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 4px rgba(79,70,229,.15); }
+  #send {
+    width:50px; height:50px; border:0; border-radius:50%; cursor:pointer; color:#fff; font-size:20px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--user1),var(--user2)); box-shadow:0 8px 20px rgba(79,70,229,.4); transition:.2s;
+  }
+  #send:hover { transform:scale(1.08) rotate(-8deg); }
+  #send:disabled { opacity:.5; cursor:default; transform:none; }
+  .foot { text-align:center; font-size:11.5px; color:var(--muted); padding:0 0 10px; }
+
+  @media (max-width:560px) {
+    body { padding:0; } .app { height:100dvh; border-radius:0; max-width:none; }
+    .cards { grid-template-columns:1fr; } .col { max-width:88%; } .newchat span { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div class="app">
+  <header>
+    <div class="logo">&#127974;</div>
+    <div class="title">
+      <h1>Bank Support Agent &middot; <span class="ar">وكيل دعم البنك</span></h1>
+      <small><span class="dot"></span> Online <span class="ar">متصل</span> &middot; Created by __AUTHOR__</small>
+    </div>
+    <button class="newchat auth" id="auth" type="button">&#128274; <span id="authlabel">Sign in <span class="ar">/ تسجيل الدخول</span></span></button>
+    <button class="newchat" id="newchat" type="button">&#10010; <span>New chat <span class="ar">/ محادثة جديدة</span></span></button>
+  </header>
+  <div class="modal" id="modal" hidden>
+    <form class="box ar" id="loginform">
+      <h3>Sign in <span dir="rtl">/ تسجيل الدخول</span></h3>
+      <p class="hint">Demo: <b>C1001</b> / <b>1234</b> &nbsp;&middot;&nbsp; <b>C1002</b> / <b>5678</b></p>
+      <input id="cid" placeholder="Customer ID / رقم العميل" autocomplete="off" required>
+      <input id="pin" type="password" placeholder="PIN / الرقم السري" autocomplete="off" inputmode="numeric" required>
+      <div class="err-line" id="loginerr"></div>
+      <div class="btns"><button type="button" id="cancel" class="ghost">Cancel / إلغاء</button><button type="submit" class="go">Sign in / دخول</button></div>
+    </form>
+  </div>
+  <div class="secure ar">&#128274; <span>Never share your PIN, OTP, CVV or password &mdash; <span dir="rtl">لا تشارك رقمك السري أو رمز التحقق أو CVV مع أي شخص.</span></span></div>
+  <div id="log"></div>
+  <form id="f">
+    <input id="q" dir="auto" placeholder="Type your question... / اكتب سؤالك هنا..." autocomplete="off" maxlength="2000" required>
+    <button id="send" aria-label="Send">&#10148;</button>
+  </form>
+  <div class="foot ar">AI assistant &middot; general guidance only. <span dir="rtl">مساعد ذكي · إرشادات عامة فقط، تواصل مع البنك لمشاكل حسابك.</span></div>
+</div>
+<script>
+  const log = document.getElementById('log'), f = document.getElementById('f'),
+        q = document.getElementById('q'), btn = document.getElementById('send');
+  let sid = newSid();
+  function newSid() { return (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()); }
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const now = () => new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+  // Small safe markdown: bold, code, bullet and numbered lists, paragraphs.
+  function md(text) {
+    const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>');
+    let out = '', list = null;
+    const close = () => { if (list) { out += '</' + list + '>'; list = null; } };
+    for (const line of text.split('\n')) {
+      let m;
+      if ((m = line.match(/^\s*[*-]\s+(.*)/))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += '<li>' + inline(m[1]) + '</li>'; }
+      else if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += '<li>' + inline(m[1]) + '</li>'; }
+      else if (line.trim() === '') close();
+      else { close(); out += '<p>' + inline(line.replace(/^#+\s*/, '')) + '</p>'; }
+    }
+    close(); return out;
+  }
+
+  function add(kind, content, isHtml) {
+    const row = document.createElement('div'); row.className = 'row ' + kind;
+    if (kind === 'bot') { const a = document.createElement('div'); a.className = 'avatar'; a.innerHTML = '&#129302;'; row.appendChild(a); }
+    const col = document.createElement('div'); col.className = 'col';
+    const m = document.createElement('div'); m.className = 'msg';
+    m.dir = 'auto'; m.classList.add('ar');
+    if (isHtml) m.innerHTML = content; else m.textContent = content;
+    const t = document.createElement('div'); t.className = 'time'; t.textContent = now();
+    col.append(m, t); row.appendChild(col); log.appendChild(row); log.scrollTop = log.scrollHeight;
+    return { row, m, t };
+  }
+
+  const TOPICS = [
+    ['&#128179;', 'Block my card', 'إيقاف البطاقة', 'My card is lost, how do I block it?', 'فقدت بطاقتي، كيف أوقفها؟'],
+    ['&#128241;', 'Failed payment', 'فشل عملية الدفع', 'My payment failed but money was deducted.', 'فشلت عملية الدفع لكن تم خصم المبلغ.'],
+    ['&#127968;', 'Loans & EMI', 'القروض والأقساط', 'How can I reduce my loan EMI?', 'كيف يمكنني تقليل قسط القرض؟'],
+    ['&#128737;&#65039;', 'Fraud / scam', 'الاحتيال', 'There is an unauthorised transaction on my account.', 'هناك عملية غير مصرح بها على حسابي.'],
+    ['&#128176;', 'My balance', 'رصيد حسابي', 'What is my account balance?', 'ما هو رصيد حسابي؟'],
+    ['&#128196;', 'Recent transactions', 'آخر العمليات', 'Show my recent transactions.', 'اعرض لي آخر عملياتي.'],
+  ];
+  // Language: starts automatic (agent follows the customer); after the first reply the
+  // customer is offered English / Arabic, and the choice is sent with every message.
+  let lang = null, langAsked = false;  // 'en' | 'ar' | null
+  const preferArabic = () => lang === 'ar' || (lang === null && (navigator.language || '').toLowerCase().startsWith('ar'));
+  function welcome() {
+    lang = null; langAsked = false; log.innerHTML = '';
+    const h = document.createElement('div'); h.className = 'hero ar';
+    h.innerHTML = '<div class="wave">&#128075;</div>' +
+      '<h2>Assalamu Alaikum, How can I help you?</h2>' +
+      '<h2 dir="rtl" style="font-size:24px;margin-top:0">السلام عليكم، كيف يمكنني مساعدتك؟</h2>' +
+      '<p>Ask me anything about your bank account, cards, payments or loans.</p>' +
+      '<p dir="rtl">اسألني عن أي شيء يخص حسابك البنكي أو البطاقات أو المدفوعات أو القروض.</p>';
+    const grid = document.createElement('div'); grid.className = 'cards';
+    for (const [ic, en, ar, qEn, qAr] of TOPICS) {
+      const c = document.createElement('button'); c.type = 'button'; c.className = 'card ar';
+      c.innerHTML = '<div class="ic">' + ic + '</div><div><b>' + en + '</b><span>' + ar + '</span></div>';
+      c.onclick = () => send(preferArabic() ? qAr : qEn);
+      grid.appendChild(c);
+    }
+    h.appendChild(grid); log.appendChild(h);
+    q.placeholder = 'Type your question... / اكتب سؤالك هنا...';
+  }
+  function askLanguage() {
+    langAsked = true;
+    const row = add('bot', '', true).row, m = row.querySelector('.msg');
+    m.innerHTML = '<div>Which language would you like to continue in?</div><div dir="rtl">بأي لغة تفضل أن نكمل؟</div>' +
+      '<div class="langpick"><button type="button" data-l="en">English</button><button type="button" data-l="ar">العربية</button></div>';
+    m.querySelectorAll('button').forEach(b => b.onclick = () => {
+      lang = b.dataset.l; q.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      q.placeholder = lang === 'ar' ? 'اكتب سؤالك هنا...' : 'Type your question...';
+      m.querySelector('.langpick').innerHTML = '<span class="chosen">&#10003; ' + b.textContent + '</span>'; q.focus();
+    });
+  }
+
+  async function send(text) {
+    const hero = log.querySelector('.hero'); if (hero) hero.remove();
+    add('user', text); btn.disabled = true;
+    const wait = add('bot', '<span class="typing"><span></span><span></span><span></span></span>', true);
+    try {
+      const r = await fetch('/chat', { method:'POST', headers:{'Content-Type':'application/json'},
+                                        body: JSON.stringify({ session: sid, message: text, lang }) });
+      let data = {};
+      try { data = await r.json(); } catch (_) {}
+      if (r.ok && data.reply) wait.m.innerHTML = md(data.reply);
+      else { wait.m.textContent = data.error || ('Server error (' + r.status + '). Terminal window mein error dekhein.'); wait.row.classList.add('err'); }
+    } catch (err) {
+      wait.m.textContent = 'Server se connect nahi ho paya. Check karein ki terminal mein server chal raha hai.';
+      wait.row.classList.add('err');
+    }
+    wait.t.textContent = now(); if (!langAsked) askLanguage(); btn.disabled = false; q.focus(); log.scrollTop = log.scrollHeight;
+  }
+
+  f.addEventListener('submit', e => { e.preventDefault(); const t = q.value.trim(); if (t) { q.value = ''; send(t); } });
+  // ---- Sign in (PIN is typed only in this form, never in the chat) ----
+  const modal = document.getElementById('modal'), authBtn = document.getElementById('auth'),
+        authLabel = document.getElementById('authlabel'), loginErr = document.getElementById('loginerr');
+  let signedIn = null;
+  function setAuth(name) {
+    signedIn = name;
+    authBtn.classList.toggle('on', !!name);
+    authLabel.innerHTML = name ? '&#10003; ' + esc(name) + ' <span class="ar">/ خروج</span>'
+                               : 'Sign in <span class="ar">/ تسجيل الدخول</span>';
+  }
+  authBtn.onclick = async () => {
+    if (signedIn) {
+      await fetch('/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session: sid }) });
+      setAuth(null); add('bot', 'You have been signed out. / تم تسجيل خروجك.'); return;
+    }
+    loginErr.textContent = ''; modal.hidden = false; document.getElementById('cid').focus();
+  };
+  document.getElementById('cancel').onclick = () => { modal.hidden = true; };
+  document.getElementById('loginform').addEventListener('submit', async e => {
+    e.preventDefault(); loginErr.textContent = '';
+    try {
+      const r = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ session: sid, customer_id: document.getElementById('cid').value, pin: document.getElementById('pin').value }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { loginErr.textContent = data.error || 'Sign in failed.'; return; }
+      document.getElementById('pin').value = ''; modal.hidden = true; setAuth(data.name);
+      const hero = log.querySelector('.hero'); if (hero) hero.remove();
+      add('bot', 'Signed in as ' + data.name + '. You can now ask about your balance, transactions, cards and more.\nتم تسجيل دخولك باسم ' + data.name + '. يمكنك الآن السؤال عن رصيدك وعملياتك وبطاقاتك.');
+    } catch (_) { loginErr.textContent = 'Cannot reach the server.'; }
+  });
+
+  document.getElementById('newchat').onclick = () => { sid = newSid(); setAuth(null); welcome(); q.focus(); };
+  welcome();
+</script>
+</body>
+</html>
